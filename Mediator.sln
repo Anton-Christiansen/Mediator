@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mediator", "Mediator\Mediator.csproj", "{1D252BCA-B2B6-479B-8EEF-9E4B98DE3A07}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mediator.SourceGenerators", "Mediator.SourceGenerators\Mediator.SourceGenerators\Mediator.SourceGenerators.csproj", "{AD6C2DCE-8F64-4720-BFEB-CBEE933AAEF1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mediator.SourceGenerators.Tests", "Mediator.SourceGenerators\Mediator.SourceGenerators.Tests\Mediator.SourceGenerators.Tests.csproj", "{1932F766-A378-4E89-BEC7-BD5D1A95F3E0}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1D252BCA-B2B6-479B-8EEF-9E4B98DE3A07}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1D252BCA-B2B6-479B-8EEF-9E4B98DE3A07}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1D252BCA-B2B6-479B-8EEF-9E4B98DE3A07}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1D252BCA-B2B6-479B-8EEF-9E4B98DE3A07}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AD6C2DCE-8F64-4720-BFEB-CBEE933AAEF1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AD6C2DCE-8F64-4720-BFEB-CBEE933AAEF1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AD6C2DCE-8F64-4720-BFEB-CBEE933AAEF1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AD6C2DCE-8F64-4720-BFEB-CBEE933AAEF1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1932F766-A378-4E89-BEC7-BD5D1A95F3E0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1932F766-A378-4E89-BEC7-BD5D1A95F3E0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1932F766-A378-4E89-BEC7-BD5D1A95F3E0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1932F766-A378-4E89-BEC7-BD5D1A95F3E0}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

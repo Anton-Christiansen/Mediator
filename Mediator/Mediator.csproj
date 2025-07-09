@@ -1,0 +1,32 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+
+        <RootNamespace>Mediator</RootNamespace>
+
+        <PackageId>Anton_Christiansen.Mediator.Test</PackageId>
+        <Version>0.0.9.41</Version>
+        <Authors>Anton Christiansen</Authors>
+        <Company>Freestyle</Company>
+        <IsPackable>true</IsPackable>
+
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Mediator.SourceGenerators\Mediator.SourceGenerators\Mediator.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false"/>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.4" />
+
+        <None Include="Docs/README.md" Pack="true" PackagePath="/" />
+        <None Include="..\Mediator.SourceGenerators\Mediator.SourceGenerators\bin\$(Configuration)\netstandard2.0\Mediator.SourceGenerators.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    </ItemGroup>
+    
+    
+    <ItemGroup>
+      <Folder Include="Attributes\" />
+    </ItemGroup>
+
+</Project>
