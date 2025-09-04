@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Mediator.Implementations;
 
-internal class CommandPipeline<THandler, TRequest>(THandler handler, List<IPipelineBehaviour<TRequest>> behaviours)
+internal class CommandPipeline<THandler, TRequest>(THandler handler, IEnumerable<IPipelineBehaviour<TRequest>> behaviours)
     where THandler : IRequestHandler<TRequest>
 {
     private IPipelineBehaviour<TRequest>[] Behaviours { get; } = behaviours.ToArray();
@@ -56,7 +56,7 @@ internal class CommandPipeline<THandler, TRequest>(THandler handler, List<IPipel
 
 internal class QueryPipeline<THandler, TRequest, TResponse>(
     THandler handler,
-    List<IPipelineBehaviour<TRequest, TResponse>> behaviours)
+    IEnumerable<IPipelineBehaviour<TRequest, TResponse>> behaviours)
     where THandler : IRequestHandler<TRequest, TResponse>
 {
     private IPipelineBehaviour<TRequest, TResponse>[] Behaviours { get; } = behaviours.ToArray();

@@ -3,7 +3,7 @@ using System.ComponentModel.Design;
 namespace Mediator.Interfaces;
 
 
-public interface IMediator
+public interface IMediator : INotifier 
 {
     Task SendAsync<TRequest>(TRequest request, CancellationToken cancellationToken = default)
         where TRequest : class;

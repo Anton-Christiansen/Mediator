@@ -3,9 +3,10 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Mediator.Implementations;
 
+
 internal class PipelineStore
 {
-    Dictionary<Type, List<Type>> Pipelines { get; } = new();
+    private Dictionary<Type, List<Type>> Pipelines { get; } = new();
     
     
     public void Add(Type type, List<Type> behaviours)
@@ -13,10 +14,14 @@ internal class PipelineStore
         Pipelines.Add(type, behaviours);
     }
     
+    
     public List<IPipelineBehaviour<TRequest>> Resolve<TRequest>(Type type, IServiceProvider services)
     {
-        var genericType = type.GetGenericTypeDefinition(); // typeof(ICommandHandler<>)
-        var behaviourTypes = Pipelines[genericType]; // Logging-, transactional-behaviour
+        var genericType = type.GetGenericTypeDefinition();
+        if (Pipelines.TryGetValue(genericType, out var behaviourTypes) is false)
+        {
+            return [];
+        }
 
         List<IPipelineBehaviour<TRequest>> behaviours = [];
         
@@ -24,12 +29,12 @@ internal class PipelineStore
         foreach (var behaviourType in behaviourTypes)
         {
             var b = behaviourType.MakeGenericType(typeof(TRequest));
-            // Logger behaviour
             var constructors = b.GetConstructors();
             bool succeeded = false;
+            // Gets each constructor and then tries resolve each of its parameters from dependency injection
             foreach (var constructor in constructors)
             {
-                var parameters = constructor.GetParameters(); //  ILogger<Loggingbehaviour>
+                var parameters = constructor.GetParameters();
                 List<object> args = [];
                 bool failed = false;
                 foreach (var parameter in parameters)
@@ -67,8 +72,11 @@ internal class PipelineStore
     
     public List<IPipelineBehaviour<TRequest, TResponse>> Resolve<TRequest, TResponse>(Type type, IServiceProvider services)
     {
-        var genericType = type.GetGenericTypeDefinition(); // typeof(ICommandHandler<>)
-        var behaviourTypes = Pipelines[genericType]; // Logging-, transactional-behaviour
+        var genericType = type.GetGenericTypeDefinition();
+        if (Pipelines.TryGetValue(genericType, out var behaviourTypes) is false)
+        {
+            return [];
+        }
 
         List<IPipelineBehaviour<TRequest, TResponse>> behaviours = [];
         
@@ -76,12 +84,13 @@ internal class PipelineStore
         foreach (var behaviourType in behaviourTypes)
         {
             var b = behaviourType.MakeGenericType(typeof(TRequest), typeof(TResponse));
-            // Logger behaviour
             var constructors = b.GetConstructors();
             bool succeeded = false;
+            
+            // Gets each constructor and then tries resolve each of its parameters from dependency injection
             foreach (var constructor in constructors)
             {
-                var parameters = constructor.GetParameters(); //  ILogger<Loggingbehaviour>
+                var parameters = constructor.GetParameters();
                 List<object> args = [];
                 bool failed = false;
                 foreach (var parameter in parameters)

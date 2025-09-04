@@ -5,136 +5,85 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Mediator.Helpers;
 
-
 public class MediatorBuilder
 {
-    private bool UsingPipelines { get; set; } = false;
+    // Services is public so that generated source code for Dependency Injection registration can access it with extension method
     public IServiceCollection Services { get; }
     private PipelineStore PipelineStore { get; } = new();
+    private bool UsingPipelines { get; set; } = false;
     
-    
-    internal MediatorBuilder(IServiceCollection  services)
+
+    internal MediatorBuilder(IServiceCollection services)
     {
         Services = services;
     }
-    
+
+    private void RegisterPipelineStore()
+    {
+        if (UsingPipelines) return;
+
+        Services.AddSingleton(PipelineStore);
+        UsingPipelines = true;
+    }
+
     public MediatorBuilder AddNotifications(Action<NotificationBuilder>? configure = null)
     {
-        Services.TryAddTransient<INotifier, Notifier>();
+        Services.TryAddTransient<INotifier, Implementations.Mediator>();
 
         if (configure is not null)
         {
             var b = new NotificationBuilder(Services);
             configure.Invoke(b);
         }
-        
+
         return this;
     }
 
-
-
-    private void AddToDependencyInjection()
+    public MediatorBuilder AddPipeline(Type type, Action<PipelineBuilder> configure)
     {
-        if (UsingPipelines) return;
-        Services.AddSingleton(PipelineStore);
-        UsingPipelines = true;
-    }
-
-    
-    
-    public MediatorBuilder AddVoidPipeline(Type type, Action<VoidPipelineBuilder> configure)
-    {
-        if ((type == typeof(IRequestHandler<>)) is false)
+        if (type.IsDerivedFrom(typeof(IRequestHandler<>)) is false &&
+            type.IsDerivedFrom(typeof(IRequestHandler<,>)) is false)
         {
-            var interfaces = type.GetInterfaces();
-            var first = interfaces[0];
-            var definition = first.GetGenericTypeDefinition();
-
-            if ((definition == typeof(IRequestHandler<>)) is false)
-            {
-                throw new InvalidOperationException($"type {type} does not inherit from {typeof(IRequestHandler<>)}");
-            }
+                throw new InvalidOperationException($"type {type} does not inherit from {typeof(IRequestHandler<>)} or {typeof(IRequestHandler<,>)}");
         }
-        
-        AddToDependencyInjection();
-        
-        var l = new VoidPipelineBuilder();
+
+        RegisterPipelineStore();
+
+        bool hasReturnType = type.IsDerivedFrom(typeof(IRequestHandler<,>));
+
+        var l = new PipelineBuilder(hasReturnType);
         configure(l);
+
         PipelineStore.Add(type, l.Types);
-        
+
         return this;
-    }
-    
-    public MediatorBuilder AddReturnPipeline(Type type, Action<ReturnPipelineBuilder> configure)
-    {
-        if ((type == typeof(IRequestHandler<,>)) is false)
-        {
-            var interfaces = type.GetInterfaces();
-            var first = interfaces[0];
-            var definition = first.GetGenericTypeDefinition();
-
-            if ((definition == typeof(IRequestHandler<,>)) is false)
-            {
-                throw new InvalidOperationException($"type {type} does not inherit from {typeof(IRequestHandler<,>)}");
-            }
-        }
-        
-        
-        AddToDependencyInjection();
-        
-        var l = new ReturnPipelineBuilder();
-        configure(l);
-        PipelineStore.Add(type, l.Types);
-        
-        return this;
-    }
-    
-    
-
-    
-}
-
-public class VoidPipelineBuilder
-{
-    internal readonly List<Type> Types = [];
-    public void AddBehaviour(Type type)
-    {
-        if ((type == typeof(IPipelineBehaviour<>)) is false)
-        {
-            var interfaces = type.GetInterfaces();
-            var first = interfaces[0];
-            var definition = first.GetGenericTypeDefinition();
-
-            if ((definition == typeof(IPipelineBehaviour<>)) is false)
-            {
-                throw new InvalidOperationException($"type {type} does not inherit from {typeof(IPipelineBehaviour<>)}");
-            }
-        }
-        
-        
-        Types.Add(type);
     }
 }
 
-
-public class ReturnPipelineBuilder
+public class PipelineBuilder(bool hasReturnType)
 {
+    private bool HasReturnType { get; set; } = hasReturnType;
     internal readonly List<Type> Types = [];
+
     public void AddBehaviour(Type type)
     {
-        if ((type == typeof(IPipelineBehaviour<,>)) is false)
+        if (HasReturnType)
         {
-            var interfaces = type.GetInterfaces();
-            var first = interfaces[0];
-            var definition = first.GetGenericTypeDefinition();
-
-            if ((definition == typeof(IPipelineBehaviour<,>)) is false)
+            if (type.IsDerivedFrom(typeof(IPipelineBehaviour<,>)) is false)
             {
-                throw new InvalidOperationException($"type {type} does not inherit from {typeof(IPipelineBehaviour<,>)}");
+                throw new InvalidOperationException(
+                    $"type {type} does not inherit from {typeof(IPipelineBehaviour<,>)}");
             }
         }
-        
+        else
+        {
+            if (type.IsDerivedFrom(typeof(IPipelineBehaviour<>)) is false)
+            {
+                throw new InvalidOperationException(
+                    $"type {type} does not inherit from {typeof(IPipelineBehaviour<>)}");
+            }
+        }
+
         Types.Add(type);
     }
-    
 }
