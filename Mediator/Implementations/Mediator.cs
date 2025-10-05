@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Mediator.Implementations;
 
-internal class Mediator(IServiceProvider services, PipelineStore pipelineStore) : IMediator
+internal class Mediator(IServiceProvider services /*, PipelineStore pipelineStore */) : IMediator
 {
     public async Task NotifyAsync<TRequest>(TRequest request, CancellationToken cancellationToken = default)
     {
@@ -36,21 +36,23 @@ internal class Mediator(IServiceProvider services, PipelineStore pipelineStore) 
         IRequestHandler<TRequest> handler = services.GetRequiredService<IRequestHandler<TRequest>>();
         var handlerType = handler.GetType().GetInterfaces()
             .First(x => x.IsAssignableTo(typeof(IRequestHandler<TRequest>)));
-
-        List<IPipelineBehaviour<TRequest>> behaviours = [];
-        if (handlerType.IsDerivedFromWithSteps(typeof(IRequestHandler<TRequest>), out var list))
-        {
-            foreach (var item in list)
-            {
-                behaviours.AddRange(pipelineStore.Resolve<TRequest>(item, services));
-            }
-        }
-
-        behaviours.Reverse();
         
-        var pipeline = new CommandPipeline<IRequestHandler<TRequest>, TRequest>(handler, behaviours);
+        var genericHandlerType = typeof(IPipelineBehaviour<,>);
+        List<BehaviourEnumerator<TRequest>> behaviours = [];
+        foreach (var step in handlerType.GetInheritanceSteps(typeof(IRequestHandler<TRequest>)))
+        {
+            var concreteHandlerType = genericHandlerType.MakeGenericType(step, typeof(TRequest));
+            var bhs = services.GetServices(concreteHandlerType);
+            var enumerator = new BehaviourEnumerator<TRequest>(bhs!);
+            behaviours.Add(enumerator);
+        }
+        
+        var pipeline = new PipelineEnumerator<IRequestHandler<TRequest>, TRequest>(behaviours, handler);
+        
+        
         await pipeline.ExecuteAsync(request, cancellationToken);
     }
+
 
     public async Task<TResponse> SendAsync<TRequest, TResponse>(TRequest request,
         CancellationToken cancellationToken = default)
@@ -61,20 +63,21 @@ internal class Mediator(IServiceProvider services, PipelineStore pipelineStore) 
         var handlerType = handler.GetType().GetInterfaces()
             .First(x => x.IsAssignableTo(typeof(IRequestHandler<TRequest, TResponse>)));
 
-        List<IPipelineBehaviour<TRequest, TResponse>> behaviours = [];
-        if (handlerType.IsDerivedFromWithSteps(typeof(IRequestHandler<TRequest, TResponse>), out var list))
+
+        var genericHandlerType = typeof(IPipelineBehaviour<,,>);
+        List<BehaviourEnumerator<TRequest, TResponse>> behaviours = [];
+        foreach (var step in handlerType.GetInheritanceSteps(typeof(IRequestHandler<TRequest, TResponse>)))
         {
-            foreach (var item in list)
-            {
-                behaviours.AddRange(pipelineStore.Resolve<TRequest, TResponse>(item, services));
-            }
+            var concreteHandlerType = genericHandlerType.MakeGenericType(step, typeof(TRequest), typeof(TResponse));
+            var bhs = services.GetServices(concreteHandlerType);
+            var enumerator = new BehaviourEnumerator<TRequest, TResponse>(bhs!);
+            behaviours.Add(enumerator);
         }
-
-        behaviours.Reverse();
         
-        var pipeline =
-            new QueryPipeline<IRequestHandler<TRequest, TResponse>, TRequest, TResponse>(handler, behaviours);
+        var pipeline = new PipelineEnumerator<IRequestHandler<TRequest, TResponse>, TRequest, TResponse>(behaviours, handler);
+        
         return await pipeline.ExecuteAsync(request, cancellationToken);
-
     }
 }
+
+
