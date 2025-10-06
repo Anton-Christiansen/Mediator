@@ -52,23 +52,21 @@ public interface ICommandHandler<in TRequest> : IRequestHandler<TRequest>;
 public interface ICommandHandler<in TRequest, TResponse> : IRequestHandler<TRequest, TResponse>;
 public interface IQueryHandler<in TRequest, TResponse> : IRequestHandler<TRequest, TResponse>;
 
-public interface IPeopleCommandRepository { public Task<Guid> AddAsync(string newName); }
+public interface IPeopleCommandRepository { public Task AddAsync(Guid id, string newName); }
 public interface IPeopleQueryRepository { public Task<string> GetByIdAsync(Guid id); }
 
 public static class Add
 {
-    public record Request(string Name);
-    public record Response(Guid Id);
-
+    public record Request(Guid Id, string Name);
     public record Notification(Guid Id, string Name);
-    public class Handler(IPeopleCommandRepository repository, INotifier notifier) : ICommandHandler<Request, Response>
+
+    public class Handler(IPeopleCommandRepository repository, INotifier notifier) : ICommandHandler<Request>
     {
-        public async Task<Response> HandleAsync(Request request,
+        public async Task HandleAsync(Request request,
             CancellationToken cancellationToken = new CancellationToken())
         {
-            var personId = await repository.AddAsync(request.Name);
-            await notifier.NotifyAsync(new Notification(personId, request.Name), cancellationToken);
-            return new Response(personId);
+            await repository.AddAsync(request.Id, request.Name);
+            await notifier.NotifyAsync(new Notification(request.Id, request.Name), cancellationToken);
         }
     }
 }
