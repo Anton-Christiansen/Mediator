@@ -29,7 +29,7 @@ builder.Services.AddMediator(mediatorBuilder =>
 ```
 
 ### IMediator and INotifier
-Use the SendAsync method on IMediator interface. See Handler example below on INotifier example.
+Use the `SendAsync` method on `IMediator` interface. See Handler example below on `INotifier` example.
 ```c#
 var mediator = app.Services.GetRequiredService<IMediator>();
 
