@@ -3,6 +3,9 @@
 ## About
 This mediators purpose is to help you organize your code, and reduce some boilerplate code associated with mediator and dependency injection.
 
+## Nuget
+Install the package `Anton_Christiansen.Mediator`
+
 ## What's different about this mediator
 While similar to other Mediators, this one stand out in 2 way's: The handler and the pipeline behaviour.
 
