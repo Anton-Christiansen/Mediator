@@ -84,7 +84,11 @@ public static class FindPerson
             => new (request.Id, await repository.GetByIdAsync(request.Id));
     }
 }
+```
 
+#### Notification handlers
+
+```c#
 public class GreetNewPerson : INotificationHandler<Add.Notification>
 {
     public Task HandleAsync(Add.Notification notification, CancellationToken cancellationToken = new CancellationToken())
