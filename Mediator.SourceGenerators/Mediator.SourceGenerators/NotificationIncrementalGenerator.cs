@@ -1,6 +1,6 @@
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using Mediator.SourceGenerators.Helpers;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -60,33 +60,13 @@ public class NotificationIncrementalGenerator : IIncrementalGenerator
         return false;
     }
 
-    public static IEnumerable<INamedTypeSymbol> GetAllTypes(INamespaceSymbol ns)
-    {
-        foreach (var type in ns.GetTypeMembers())
-            yield return type;
-
-        foreach (var nestedNs in ns.GetNamespaceMembers())
-        {
-            foreach (var t in GetAllTypes(nestedNs))
-            {
-                yield return t;
-                
-                foreach (var l in t.GetTypeMembers())
-                {
-                    yield return l;
-                }
-            }
-        }
-    }
-
-
     private static void GenerateCode(SourceProductionContext context, Compilation compilation,
         ImmutableArray<Information> information)
     {
         // Looking through already compiled code, looking to find anything to generate
         foreach (var assembly in compilation.SourceModule.ReferencedAssemblySymbols)
         {
-            foreach (var type in GetAllTypes(assembly.GlobalNamespace))
+            foreach (var type in TypeHelper.GetAllTypes(assembly.GlobalNamespace))
             {
                 if (type.TypeKind != TypeKind.Class) continue;
 
@@ -95,13 +75,10 @@ public class NotificationIncrementalGenerator : IIncrementalGenerator
                 information = information.Add(info!);
             }
         }
-
-        // If nothing found we return early
-        if (information.Length == 0) return;
-
-
+        
         var namespaces = information.Select(x => x.Namespace).Distinct().ToArray();
 
+        information = information.Distinct().ToImmutableArray();
         
         context.AddSource($"MediatorNotificationDependencyInjection.g.cs",
             $$"""
@@ -120,7 +97,7 @@ public class NotificationIncrementalGenerator : IIncrementalGenerator
               {
                 internal static MediatorBuilder AddNotifications(this MediatorBuilder builder)
                 {
-                    {{string.Join("\n\t\t", information.Select(info => $"builder.Services.AddTransient<INotificationHandler<{info.RequestName}>, {info.FullyQualifiedClassName}>();"))}}
+                    {{string.Join("\n\n\t\t", information.Select(info => $"builder.Services.AddTransient<INotificationHandler<{info.RequestName}>, {info.FullyQualifiedClassName}>();"))}}
                     
                     return builder;
                 }

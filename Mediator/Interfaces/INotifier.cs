@@ -8,7 +8,7 @@ public interface INotifier
     /// </summary>
     /// <param name="request">The notification</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <typeparam name="TRequest">The notification type</typeparam>
+    /// <typeparam name="TNotification">The notification type</typeparam>
     /// <returns></returns>
-    Task NotifyAsync<TRequest>(TRequest request, CancellationToken cancellationToken = default);
+    Task NotifyAsync<TNotification>(TNotification request, CancellationToken cancellationToken = default);
 }

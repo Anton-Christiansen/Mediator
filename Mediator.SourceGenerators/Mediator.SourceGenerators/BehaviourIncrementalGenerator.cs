@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using Mediator.SourceGenerators.Helpers;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -10,7 +11,6 @@ namespace Mediator.SourceGenerators;
 [Generator]
 public class BehaviourIncrementalGenerator : IIncrementalGenerator
 {
-    
     private record Information(string Namespace, string FullyQualifiedClassName, string HandlerType, RequestResponse[] RequestResponses)
     {
         public string Namespace { get; } = Namespace;
@@ -57,14 +57,11 @@ public class BehaviourIncrementalGenerator : IIncrementalGenerator
         foreach (var @interface in symbol.Interfaces)
         {
             if (@interface.Name.Contains("IPipelineBehaviour") is false) continue;
-            var interfaceName = @interface.ToString();
             var arguments = @interface.TypeArguments;
             var handlerSymbol =  (INamedTypeSymbol)arguments.First();
-            
             requestResponses = FindRequestResponses(globalSpace, handlerSymbol);
 
-            //var unbound = handlerSymbol.ConstructUnboundGenericType();
-            //handlerName = unbound.ToString();
+            var interfaceName = @interface.ToString();
             var start = interfaceName.IndexOf('<');
             var end = interfaceName.IndexOf('<', start + 1);
             handlerName = interfaceName.Substring(start + 1, end - start - 1);
@@ -85,8 +82,7 @@ public class BehaviourIncrementalGenerator : IIncrementalGenerator
     private static RequestResponse[] FindRequestResponses(INamespaceSymbol ns, INamedTypeSymbol handler)
     {
         List<RequestResponse> requestResponses = [];
-        foreach (var type in NotificationIncrementalGenerator.GetAllTypes(
-                     ns))
+        foreach (var type in TypeHelper.GetAllTypes(ns))
         {
             if (type.IsGenericType) continue;
             
@@ -129,7 +125,7 @@ public class BehaviourIncrementalGenerator : IIncrementalGenerator
     {
         foreach (var assembly in compilation.SourceModule.ReferencedAssemblySymbols)
         {
-            foreach (var type in NotificationIncrementalGenerator.GetAllTypes(assembly.GlobalNamespace))
+            foreach (var type in TypeHelper.GetAllTypes(assembly.GlobalNamespace))
             {
                 if (type.TypeKind != TypeKind.Class) continue;
                 
@@ -139,9 +135,7 @@ public class BehaviourIncrementalGenerator : IIncrementalGenerator
         }
 
         information = information.Where(x => x.RequestResponses.Length > 0).ToImmutableArray();
-        if (information.Length == 0) return;
         
-
         
         var namespaces = information.Select(x => x.Namespace).Distinct().ToArray();
 
@@ -151,7 +145,7 @@ public class BehaviourIncrementalGenerator : IIncrementalGenerator
                 new
                 {
                     info.FullyQualifiedClassName,
-                    FullyQualifiedHandlerClassName = info.HandlerType,
+                    info.HandlerType,
                     Generic = rr.Response is null ? rr.Request : $"{rr.Request}, {rr.Response}"
                 })).ToArray();
 
@@ -159,7 +153,7 @@ public class BehaviourIncrementalGenerator : IIncrementalGenerator
         test = test.Distinct().ToArray();
         
         var lines = test.Select(info =>
-            $"builder.Services.AddTransient<IPipelineBehaviour<{info.FullyQualifiedHandlerClassName}<{info.Generic}>, {info.Generic}>, {info.FullyQualifiedClassName}<{info.Generic}>>();").ToArray();
+            $"builder.Services.AddTransient<IPipelineBehaviour<{info.HandlerType}<{info.Generic}>, {info.Generic}>, {info.FullyQualifiedClassName}<{info.Generic}>>();").ToArray();
             
             
         
@@ -180,7 +174,7 @@ public class BehaviourIncrementalGenerator : IIncrementalGenerator
               {
                 internal static MediatorBuilder AddPipelines(this MediatorBuilder builder)
                 {
-                    {{string.Join("\n\t\t", lines)}}
+                    {{string.Join("\n\n\t\t", lines)}}
                     
                     return builder;
                 }

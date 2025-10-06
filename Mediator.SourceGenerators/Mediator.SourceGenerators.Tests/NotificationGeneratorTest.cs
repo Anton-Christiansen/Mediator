@@ -14,7 +14,7 @@ public class NotificationGeneratorTest
     public void Behaviours()
     {
         const string input = """
-                             namespace Wanker
+                             namespace Test
                              {
                                 public interface ICommandHandler<in TRequest> : Mediator.Interfaces.IRequestHandler<TRequest>;
                                 public interface ICommandHandler<in TRequest, TResponse> : Mediator.Interfaces.IRequestHandler<TRequest, TResponse>;
@@ -39,7 +39,7 @@ public class NotificationGeneratorTest
                                      public record Input();
                                      public record Output();
                                  
-                                     public class Handler : Wanker.ICommandHandler<Input, Output>
+                                     public class Handler : Test.ICommandHandler<Input, Output>
                                      {
                                          public async Task<Output> HandleAsync(Input request, CancellationToken cancellationToken = new CancellationToken())
                                          {
@@ -55,7 +55,7 @@ public class NotificationGeneratorTest
                                  {
                                      public record InputTwo();
                                      public record OutputTwo();
-                                     public class Handler : Wanker.ICommandHandler<InputTwo, OutputTwo>
+                                     public class Handler : Test.ICommandHandler<InputTwo, OutputTwo>
                                      {
                                          public async<OutputTwo> TaskHandleAsync(InputTwo request, CancellationToken cancellationToken = new CancellationToken())
                                          {
@@ -82,7 +82,9 @@ public class NotificationGeneratorTest
                                       {
                                         internal static MediatorBuilder AddPipelines(this MediatorBuilder builder)
                                         {
-                                            builder.Services.AddTransient<IPipelineBehaviour<RandomSpace.Add.Request, RandomSpace.Add.Response>, LoggingBehaviour<RandomSpace.Add.Request, RandomSpace.Add.Response>>();
+                                            builder.Services.AddTransient<IPipelineBehaviour<Mediator.Interfaces.IRequestHandler<RandomSpace.Add.Input, RandomSpace.Add.Output>, RandomSpace.Add.Input, RandomSpace.Add.Output>, LoggingBehaviour<RandomSpace.Add.Input, RandomSpace.Add.Output>>();
+                                      
+                                      		builder.Services.AddTransient<IPipelineBehaviour<Mediator.Interfaces.IRequestHandler<RandomSpaceTwo.Delete.InputTwo, RandomSpaceTwo.Delete.OutputTwo>, RandomSpaceTwo.Delete.InputTwo, RandomSpaceTwo.Delete.OutputTwo>, LoggingBehaviour<RandomSpaceTwo.Delete.InputTwo, RandomSpaceTwo.Delete.OutputTwo>>();
                                             
                                             return builder;
                                         }
@@ -138,11 +140,9 @@ public class NotificationGeneratorTest
                                                          {
                                                            internal static MediatorBuilder AddNotifications(this MediatorBuilder builder)
                                                            {
-                                                               builder.Services.AddTransient<INotificationHandler<Application.Jobs.JobCreated.Notification>, Application.Jobs.JobCreated.HandlerOne>();
-                                                         		builder.Services.AddTransient<INotificationHandler<Application.Jobs.JobCreated.Notification>, Application.Jobs.JobCreated.HandlerTwo>();
-                                                         		builder.Services.AddTransient<INotificationHandler<Application.Jobs.JobCreated.Notification>, Application.Jobs.JobCreated.HandlerThree>();
-                                                               
-                                                               return builder;
+                                                               return builder.Services.AddTransient<INotificationHandler<Application.Jobs.JobCreated.Notification>, Application.Jobs.JobCreated.HandlerOne>()
+                                                         			.AddTransient<INotificationHandler<Application.Jobs.JobCreated.Notification>, Application.Jobs.JobCreated.HandlerTwo>()
+                                                         			.AddTransient<INotificationHandler<Application.Jobs.JobCreated.Notification>, Application.Jobs.JobCreated.HandlerThree>();
                                                            }
                                                          }
                                                          

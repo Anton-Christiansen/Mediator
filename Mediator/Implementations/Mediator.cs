@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Mediator.Implementations;
 
-internal class Mediator(IServiceProvider services /*, PipelineStore pipelineStore */) : IMediator
+internal class Mediator(IServiceProvider services) : IMediator
 {
     public async Task NotifyAsync<TRequest>(TRequest request, CancellationToken cancellationToken = default)
     {

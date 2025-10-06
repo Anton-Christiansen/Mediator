@@ -1,7 +1,6 @@
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using System.Text;
+using Mediator.SourceGenerators.Helpers;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -44,7 +43,6 @@ public class RequestIncrementalGenerator : IIncrementalGenerator
     {
         information = null;
         
-        //foreach (var @interface in symbol.AllInterfaces)
         foreach (var @interface in symbol.AllInterfaces)
         {
             if (!@interface.Name.Contains("IRequestHandler") &&
@@ -60,8 +58,6 @@ public class RequestIncrementalGenerator : IIncrementalGenerator
             return true;
         }
         
-        // Tjek efter nested klasser
-
         return false;
     }
 
@@ -70,7 +66,7 @@ public class RequestIncrementalGenerator : IIncrementalGenerator
     {
         foreach (var assembly in compilation.SourceModule.ReferencedAssemblySymbols)
         {
-            foreach (var type in NotificationIncrementalGenerator.GetAllTypes(assembly.GlobalNamespace))
+            foreach (var type in TypeHelper.GetAllTypes(assembly.GlobalNamespace))
             {
                 if (type.TypeKind != TypeKind.Class) continue;
 
@@ -79,9 +75,6 @@ public class RequestIncrementalGenerator : IIncrementalGenerator
                 information = information.Add(info!);
             }
         }
-        
-        if (information.Length == 0) return;
-        
         
         information = information.Distinct().ToImmutableArray();
         var namespaces = information.Select(x => x.Namespace).Distinct().ToArray();
@@ -103,7 +96,7 @@ public class RequestIncrementalGenerator : IIncrementalGenerator
               {
                 internal static MediatorBuilder AddHandlers(this MediatorBuilder builder)
                 {
-                    {{string.Join("\n\t\t", information.Select(info => $"builder.Services.TryAddTransient<IRequestHandler<{info.GenericType}>, {info.FullyQualifiedClassName}>();"))}}
+                    {{string.Join("\n\n\t\t", information.Select(info => $"builder.Services.TryAddTransient<IRequestHandler<{info.GenericType}>, {info.FullyQualifiedClassName}>();"))}}
                     
                     return builder;
                 }
