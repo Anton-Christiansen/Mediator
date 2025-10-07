@@ -112,7 +112,7 @@ public class HighFiveNewPerson : INotificationHandler<Add.Notification>
 ```
 
 ### Pipeline behaviour
-Here is an example to pipeline behaviour log all requests and responses. 
+Here is an example of a pipeline behaviours to log all requests and responses going to and from all handlers. 
 ```c#
 using Mediator.Interfaces;
 using Microsoft.Extensions.Logging;
