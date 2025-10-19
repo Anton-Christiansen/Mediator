@@ -8,7 +8,7 @@
         <RootNamespace>Mediator</RootNamespace>
 
         <PackageId>Anton_Christiansen.Mediator</PackageId>
-        <Version>0.0.1.0</Version>
+        <Version>0.0.1.1</Version>
         <Authors>Anton Christiansen</Authors>
         <Company>Freestyle</Company>
         <IsPackable>true</IsPackable>
