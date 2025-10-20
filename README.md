@@ -4,7 +4,7 @@
 Install the package `Anton_Christiansen.Mediator`
 
 ### Handlers
-You derive your own custom handlers (for example: a `ICommandHandler` and/or a `IQueryHandler`) from the `IRequestHandler<>` or `IRequestHandler<,>` inferface.
+You derive your own custom handlers (for example: a `ICommandHandler` and/or a `IQueryHandler`) from the `IRequestHandler<>` or `IRequestHandler<,>` interface.
 
 ### Pipeline behaviours
 The interfaces `IPipelineBehaviour<THandler, TRequest>` and `IPipelineBehaviour<THandler, TRequest, TResponse>` takes a `THandler` with constraints of `IRequestHandler<>` or `IRequestHandler<,>`.
