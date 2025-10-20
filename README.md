@@ -36,7 +36,7 @@ namespace Application.Behaviours;
 
 public class LoggingBehaviour<TRequest>(ILogger<LoggingBehaviour<TRequest>> logger) : IPipelineBehaviour<IRequestHandler<TRequest>, TRequest>
 {
-    public async Task ExecuteAsync(TRequest request, Func<TRequest, Task> next, CancellationToken cancellationToken)
+    public async ValueTask ExecuteAsync(TRequest request, Func<TRequest, ValueTask> next, CancellationToken cancellationToken)
     {
         logger.LogInformation(request?.ToString());
         await next(request);
@@ -45,7 +45,7 @@ public class LoggingBehaviour<TRequest>(ILogger<LoggingBehaviour<TRequest>> logg
 
 public class LoggingBehaviour<TRequest, TResponse>(ILogger<LoggingBehaviour<TRequest, TResponse>> logger) : IPipelineBehaviour<IRequestHandler<TRequest, TResponse>, TRequest, TResponse>
 {
-    public async Task<TResponse> ExecuteAsync(TRequest request, Func<TRequest, Task<TResponse>> next, CancellationToken cancellationToken)
+    public async ValueTask<TResponse> ExecuteAsync(TRequest request, Func<TRequest, ValueTask<TResponse>> next, CancellationToken cancellationToken)
     {
         logger.LogInformation(request?.ToString());
         var response = await next(request);
@@ -62,7 +62,7 @@ public interface ICommandHandler<in TRequest, TResponse> : IRequestHandler<TRequ
 
 public class TransactionBehaviour<TRequest>(IUnitOfWork dbContext) : IPipelineBehaviour<ICommandHandler<TRequest>, TRequest>
 {
-    public async Task ExecuteAsync(TRequest request, Func<TRequest, Task> next, CancellationToken cancellationToken)
+    public async ValueTask ExecuteAsync(TRequest request, Func<TRequest, ValueTask> next, CancellationToken cancellationToken)
     {
         var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
         try
@@ -80,7 +80,7 @@ public class TransactionBehaviour<TRequest>(IUnitOfWork dbContext) : IPipelineBe
 
 public class TransactionBehaviour<TRequest, TResponse>(IUnitOfWork dbContext) : IPipelineBehaviour<ICommandHandler<TRequest, TResponse>,  TRequest, TResponse>
 {
-    public async Task<TResponse> ExecuteAsync(TRequest request, Func<TRequest, Task<TResponse>> next, CancellationToken cancellationToken)
+    public async ValueTask<TResponse> ExecuteAsync(TRequest request, Func<TRequest, ValueTask<TResponse>> next, CancellationToken cancellationToken)
     {
         var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
         try
