@@ -9,7 +9,7 @@ namespace Mediator.SourceGenerators;
 [Generator]
 public class RequestIncrementalGenerator : IIncrementalGenerator
 {
-    private record Information(string Namespace, string GenericType, string FullyQualifiedClassName)
+    private record Handler(string Namespace, string GenericType, string FullyQualifiedClassName)
     {
         public string Namespace { get; } = Namespace;
         public string GenericType { get; } = GenericType;
@@ -22,39 +22,38 @@ public class RequestIncrementalGenerator : IIncrementalGenerator
                 static (ctx, _) => ctx is ClassDeclarationSyntax,
                 static (ctx, _) => Transform(ctx))
             .Where(x => x.Found)
-            .Select((x, _) => x.Info!);
+            .Select((x, _) => x.Handler!);
 
         context.RegisterSourceOutput(context.CompilationProvider.Combine(provider.Collect()),
             (ctx, t) => GenerateCode(ctx, t.Left, t.Right));
     }
 
 
-    private static (Information? Info, bool Found) Transform(GeneratorSyntaxContext context)
+    private static (Handler? Handler, bool Found) Transform(GeneratorSyntaxContext context)
     {
         var declaration = (ClassDeclarationSyntax)context.Node;
         if (context.SemanticModel.GetDeclaredSymbol(declaration) is not INamedTypeSymbol typeSymbol)
             return (null, false);
         
-        var result = GetInformationFromSymbol(typeSymbol, out var information);
-        return (information, result);
+        var result = GetHandlerFromSymbol(typeSymbol, out var handler);
+        return (handler, result);
     }
     
-    private static bool GetInformationFromSymbol(INamedTypeSymbol symbol, out Information? information)
+    private static bool GetHandlerFromSymbol(INamedTypeSymbol symbol, out Handler? handler)
     {
-        information = null;
+        handler = null;
         
         foreach (var @interface in symbol.AllInterfaces)
         {
-            if (!@interface.Name.Contains("IRequestHandler") &&
-                (@interface.BaseType is null || !@interface.BaseType.Name.Contains("IRequestHandler"))) continue;
-            
-            
-            string interfaceName = @interface.ToString();
+            var fullyQualifiedInterfaceName = @interface.ToString();
+            if (fullyQualifiedInterfaceName.StartsWith("Mediator.Interfaces.IRequestHandler") is false) continue;
+          
+            string interfaceName = fullyQualifiedInterfaceName;
             int start = interfaceName.IndexOf('<');
             int end = interfaceName.LastIndexOf('>');
             interfaceName = interfaceName.Substring(start + 1,  end - start - 1);
                         
-            information = new Information(symbol.ContainingNamespace.ToString(), interfaceName, symbol.ToString());
+            handler = new Handler(symbol.ContainingNamespace.ToString(), interfaceName, symbol.ToString());
             return true;
         }
         
@@ -62,7 +61,7 @@ public class RequestIncrementalGenerator : IIncrementalGenerator
     }
 
     private static void GenerateCode(SourceProductionContext context, Compilation compilation,
-        ImmutableArray<Information> information)
+        ImmutableArray<Handler> handlers)
     {
         foreach (var assembly in compilation.SourceModule.ReferencedAssemblySymbols)
         {
@@ -70,14 +69,14 @@ public class RequestIncrementalGenerator : IIncrementalGenerator
             {
                 if (type.TypeKind != TypeKind.Class) continue;
 
-                if (GetInformationFromSymbol(type, out var info) is false) continue;
+                if (GetHandlerFromSymbol(type, out var handler) is false) continue;
                 
-                information = information.Add(info!);
+                handlers = handlers.Add(handler!);
             }
         }
         
-        information = information.Distinct().ToImmutableArray();
-        var namespaces = information.Select(x => x.Namespace).Distinct().ToArray();
+        handlers = handlers.Distinct().ToImmutableArray();
+        var namespaces = handlers.Select(x => x.Namespace).Distinct().ToArray();
         
         context.AddSource("MediatorHandlersDependencyInjection.g.cs",
             $$"""
@@ -96,7 +95,7 @@ public class RequestIncrementalGenerator : IIncrementalGenerator
               {
                 internal static MediatorBuilder AddHandlers(this MediatorBuilder builder)
                 {
-                    {{string.Join("\n\n\t\t", information.Select(info => $"builder.Services.TryAddTransient<IRequestHandler<{info.GenericType}>, {info.FullyQualifiedClassName}>();"))}}
+                    {{string.Join("\n\n\t\t", handlers.Select(handler => $"builder.Services.TryAddTransient<IRequestHandler<{handler.GenericType}>, {handler.FullyQualifiedClassName}>();"))}}
                     
                     return builder;
                 }

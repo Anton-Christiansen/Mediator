@@ -11,16 +11,16 @@ namespace Mediator.SourceGenerators;
 [Generator]
 public class BehaviourIncrementalGenerator : IIncrementalGenerator
 {
-    private record Information(string Namespace, string FullyQualifiedClassName, string HandlerType, RequestResponse[] RequestResponses)
+    private record Behaviour(string Namespace, string FullyQualifiedClassName, Handler[] Handlers)
     {
         public string Namespace { get; } = Namespace;
         public string FullyQualifiedClassName { get; } = FullyQualifiedClassName;
-        public string HandlerType { get; } = HandlerType;
-        public RequestResponse[] RequestResponses { get; } = RequestResponses;
+        public Handler[] Handlers { get; } = Handlers;
     }
 
-    private record RequestResponse(string Request, string? Response)
+    private record Handler(string Type, string Request, string? Response)
     {
+        public string Type { get; } = Type;
         public string Request { get; } = Request;
         public string? Response { get; } = Response;
     }
@@ -31,7 +31,7 @@ public class BehaviourIncrementalGenerator : IIncrementalGenerator
                 static (syntax, _) => syntax is ClassDeclarationSyntax,
                 static (ctx, _) => Transform(ctx))
             .Where(x => x.Found)
-            .Select((x, _) => x.Info);
+            .Select((x, _) => x.Behaviour);
         
         context.RegisterSourceOutput(context.CompilationProvider.Combine(provider.Collect()),
             (ctx, t) => GenerateCode(ctx, t.Left, t.Right));
@@ -39,89 +39,92 @@ public class BehaviourIncrementalGenerator : IIncrementalGenerator
 
     
     
-    private static (Information Info, bool Found) Transform(GeneratorSyntaxContext context)
+    private static (Behaviour Behaviour, bool Found) Transform(GeneratorSyntaxContext context)
     {
         var declaration = (ClassDeclarationSyntax)context.Node;
         var symbol = (INamedTypeSymbol)context.SemanticModel.GetDeclaredSymbol(declaration)!;
         
-        var result = GetInformationFromSymbol(symbol, context.SemanticModel.Compilation.GlobalNamespace, out var information);
-        return (information!, result);
+        var result = GetBehaviourFromSymbol(symbol, context.SemanticModel.Compilation.GlobalNamespace, out var behaviour);
+        return (behaviour!, result);
     }
     
-    private static bool GetInformationFromSymbol(INamedTypeSymbol symbol, INamespaceSymbol globalSpace, out Information? information)
+    private static bool GetBehaviourFromSymbol(INamedTypeSymbol symbol, INamespaceSymbol globalSpace, out Behaviour? behaviour)
     {
-        information = null;
-        string handlerName = "";
-        bool found = false;
-        RequestResponse[] requestResponses = [];
+        behaviour = null;
+        bool symbolIsBehaviour = false;
+        Handler[] handlers = [];
         foreach (var @interface in symbol.Interfaces)
         {
-            if (@interface.Name.Contains("IPipelineBehaviour") is false) continue;
+            var fullyQualifiedInterfaceName = @interface.ToString();
+            if (fullyQualifiedInterfaceName.StartsWith("Mediator.Interfaces.IPipelineBehaviour") is false) continue;
+            
             var arguments = @interface.TypeArguments;
-            var handlerSymbol =  (INamedTypeSymbol)arguments.First();
-            requestResponses = FindRequestResponses(globalSpace, handlerSymbol);
-
-            var interfaceName = @interface.ToString();
-            var start = interfaceName.IndexOf('<');
-            var end = interfaceName.IndexOf('<', start + 1);
-            handlerName = interfaceName.Substring(start + 1, end - start - 1);
-            found = true;
+            var handlerSymbol = (INamedTypeSymbol)arguments.First();
+            handlers = FindHandlers(globalSpace, handlerSymbol);
+            symbolIsBehaviour = true;
             break;
         }
 
-        if (found is false) return false;
+        if (symbolIsBehaviour is false) return false;
         
         var @namespace = symbol.ContainingNamespace.ToString();
-        var className = symbol.Name;
-        information = new Information(@namespace, className, handlerName, requestResponses);
+        var fullyQualifiedBehaviourName = symbol.ToString();
+        fullyQualifiedBehaviourName = fullyQualifiedBehaviourName.Substring(0, fullyQualifiedBehaviourName.IndexOf('<'));
+        behaviour = new Behaviour(@namespace, fullyQualifiedBehaviourName, handlers);
         return true;
     }
 
-    
-    
-    private static RequestResponse[] FindRequestResponses(INamespaceSymbol ns, INamedTypeSymbol handler)
+
+    private static bool IsDerivedFrom(INamedTypeSymbol symbol, INamedTypeSymbol handler)
     {
-        List<RequestResponse> requestResponses = [];
+        if (symbol.IsUnboundGenericType) return false;
+        if (symbol.IsGenericType is false) return false;
+        if (SymbolEqualityComparer.Default.Equals(symbol.ConstructUnboundGenericType(), handler)) return true;
+        foreach (var @interface in symbol.Interfaces)
+        {
+            var result = IsDerivedFrom(@interface, handler);
+            if (result) return true;
+        }
+
+        return false;
+    }
+    
+    private static Handler[] FindHandlers(INamespaceSymbol ns, INamedTypeSymbol handler)
+    {
+        List<Handler> handlers = [];
         foreach (var type in TypeHelper.GetAllTypes(ns))
         {
             if (type.IsGenericType) continue;
             
-            foreach (var @interface in type.AllInterfaces)
+            foreach (var @interface in type.Interfaces)
             {
-                if (@interface.IsUnboundGenericType) continue;
-                if (@interface.IsGenericType is false) continue;
+                if (IsDerivedFrom(@interface, handler.ConstructUnboundGenericType()) is false) continue;
                 
-                var unbound = @interface.ConstructUnboundGenericType();
-                var unboundHandler = handler.ConstructUnboundGenericType();
+                var input = @interface.ToString();
+                string handlerType = input.Substring(0, input.IndexOf('<'));
                 
-                if (SymbolEqualityComparer.Default.Equals(unbound, unboundHandler) is false) continue;
-
                 var arguments = @interface.TypeArguments;
 
 
-                if (arguments.Length == 1)
+                switch (arguments.Length)
                 {
-                    var rr = new RequestResponse(arguments[0].ToString(), null);
-                    requestResponses.Add(rr);
+                    case 1:
+                        handlers.Add(new Handler(handlerType, arguments[0].ToString(), null));
+                        break;
+                    case > 1:
+                        handlers.Add(new Handler(handlerType,arguments[0].ToString(), arguments[1].ToString()));
+                        break;
+                    default:
+                        continue;
                 }
-                else if (arguments.Length > 1)
-                {
-                    var rr = new RequestResponse(arguments[0].ToString(), arguments[1].ToString());
-                    requestResponses.Add(rr);
-                }
-                else
-                {
-                    throw new NotImplementedException();
-                }
-                
             }
         }
 
-        return requestResponses.ToArray();
+        return handlers.ToArray();
     }
 
     private static void GenerateCode(SourceProductionContext context, Compilation compilation,
-        ImmutableArray<Information> information)
+        ImmutableArray<Behaviour> behaviours)
     {
         foreach (var assembly in compilation.SourceModule.ReferencedAssemblySymbols)
         {
@@ -129,31 +132,36 @@ public class BehaviourIncrementalGenerator : IIncrementalGenerator
             {
                 if (type.TypeKind != TypeKind.Class) continue;
                 
-                var result = GetInformationFromSymbol(type, compilation.GlobalNamespace, out var info);
-                if (result) information = information.Add(info!);
+                var result = GetBehaviourFromSymbol(type, compilation.GlobalNamespace, out var behaviour);
+                if (result) behaviours = behaviours.Add(behaviour!);
             }
         }
 
-        information = information.Where(x => x.RequestResponses.Length > 0).ToImmutableArray();
-        
-        
-        var namespaces = information.Select(x => x.Namespace).Distinct().ToArray();
+        behaviours = behaviours.Where(x => x.Handlers.Length > 0).ToImmutableArray();
+        var namespaces = behaviours.Select(x => x.Namespace).Distinct().ToArray();
 
 
-        var test = information.SelectMany(info =>
-            info.RequestResponses.Select(rr =>
+        var entries = behaviours.SelectMany(behaviour =>
+            behaviour.Handlers.Select(rr =>
                 new
                 {
-                    info.FullyQualifiedClassName,
-                    info.HandlerType,
-                    Generic = rr.Response is null ? rr.Request : $"{rr.Request}, {rr.Response}"
+                    behaviour.FullyQualifiedClassName,
+                    HandlerType = rr.Type,
+                    hasReturn = rr.Response is not null, 
+                    Generic = rr.Response is null ? rr.Request : $"{rr.Request}, {rr.Response}",
+                    rr.Request,
+                    rr.Response
                 })).ToArray();
 
 
-        test = test.Distinct().ToArray();
+        entries = entries.Distinct().ToArray();
         
-        var lines = test.Select(info =>
-            $"builder.Services.AddTransient<IPipelineBehaviour<{info.HandlerType}<{info.Generic}>, {info.Generic}>, {info.FullyQualifiedClassName}<{info.Generic}>>();").ToArray();
+        var dependencyInjectionBehaviours = entries.OrderBy(x => x.Request).Select(behaviour =>
+            $"builder.Services.AddKeyedTransient<IBehaviourHandler<{behaviour.Generic}>, {behaviour.FullyQualifiedClassName}<{behaviour.Generic}>>(nameof({behaviour.Request}));").ToArray();
+        
+        var dependencyInjectionEnumerators =
+            entries
+                .Select(x => new {x.Generic}).Distinct().Select(info => $"builder.Services.AddTransient<Mediator.Implementations.BehaviourEnumerator<{info.Generic}>>();");
             
             
         
@@ -174,7 +182,13 @@ public class BehaviourIncrementalGenerator : IIncrementalGenerator
               {
                 internal static MediatorBuilder AddPipelines(this MediatorBuilder builder)
                 {
-                    {{string.Join("\n\n\t\t", lines)}}
+                    builder.UsePipelines();
+                
+                    // Registering Behaviours to dependency injection
+                    {{string.Join("\n\n\t\t", dependencyInjectionBehaviours)}}
+                    
+                    // Enumerators Behaviours to dependency injection
+                    {{string.Join("\n\n\t\t", dependencyInjectionEnumerators)}}
                     
                     return builder;
                 }

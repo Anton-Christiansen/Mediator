@@ -9,7 +9,7 @@ namespace Mediator.SourceGenerators;
 [Generator]
 public class NotificationIncrementalGenerator : IIncrementalGenerator
 {
-    private record Information(string Namespace, string FullyQualifiedClassName, string RequestName)
+    private record Notification(string Namespace, string FullyQualifiedClassName, string RequestName)
     {
         public string Namespace { get; } = Namespace;
         public string FullyQualifiedClassName { get; } = FullyQualifiedClassName;
@@ -22,38 +22,39 @@ public class NotificationIncrementalGenerator : IIncrementalGenerator
                 static (node, _) => node is ClassDeclarationSyntax,
                 static (ctx, _) => Transform(ctx))
             .Where(x => x.Found)
-            .Select((x, _) => x.Info!);
-
+            .Select((x, _) => x.Notification!);
+        
         context.RegisterSourceOutput(context.CompilationProvider.Combine(provider.Collect()),
             (ctx, t) => GenerateCode(ctx, t.Left, t.Right));
     }
 
 
-    private static (Information? Info, bool Found) Transform(
+    private static (Notification? Notification, bool Found) Transform(
         GeneratorSyntaxContext context)
     {
         var declaration = (ClassDeclarationSyntax)context.Node;
-
         var symbol = (INamedTypeSymbol)context.SemanticModel.GetDeclaredSymbol(declaration)!;
 
-
-        var result = GetInformationFromSymbol(symbol, out var information);
-        return (information, result);
+        var result = GetNotificationFromSymbol(symbol, out var notification);
+        return (notification, result);
     }
 
 
-    private static bool GetInformationFromSymbol(INamedTypeSymbol symbol, out Information? information)
+    private static bool GetNotificationFromSymbol(INamedTypeSymbol symbol, out Notification? notification)
     {
-        information = null;
+        notification = null;
+        if (symbol.IsGenericType) return false;
+
         foreach (var @interface in symbol.AllInterfaces)
         {
-            if (@interface.Name.Contains("INotificationHandler") is false) continue;
-            string interfaceName = @interface.ToString();
+            var fullyQualifiedInterfaceName = @interface.ToString();
+            if (fullyQualifiedInterfaceName.StartsWith("Mediator.Interfaces.INotificationHandler") is false) continue;
+            string interfaceName = fullyQualifiedInterfaceName;
             int start = interfaceName.IndexOf('<');
             int end = interfaceName.LastIndexOf('>');
             interfaceName = interfaceName.Substring(start + 1, end - start - 1);
 
-            information = new Information(symbol.ContainingNamespace.ToString(), symbol.ToString(), interfaceName);
+            notification = new Notification(symbol.ContainingNamespace.ToString(), symbol.ToString(), interfaceName);
             return true;
         }
 
@@ -61,24 +62,23 @@ public class NotificationIncrementalGenerator : IIncrementalGenerator
     }
 
     private static void GenerateCode(SourceProductionContext context, Compilation compilation,
-        ImmutableArray<Information> information)
+        ImmutableArray<Notification> notifications)
     {
-        // Looking through already compiled code, looking to find anything to generate
         foreach (var assembly in compilation.SourceModule.ReferencedAssemblySymbols)
         {
             foreach (var type in TypeHelper.GetAllTypes(assembly.GlobalNamespace))
             {
                 if (type.TypeKind != TypeKind.Class) continue;
 
-                if (GetInformationFromSymbol(type, out var info) is false) continue;
+                if (GetNotificationFromSymbol(type, out var notification) is false) continue;
 
-                information = information.Add(info!);
+                notifications = notifications.Add(notification!);
             }
         }
         
-        var namespaces = information.Select(x => x.Namespace).Distinct().ToArray();
+        var namespaces = notifications.Select(x => x.Namespace).Distinct().ToArray();
 
-        information = information.Distinct().ToImmutableArray();
+        notifications = notifications.Distinct().ToImmutableArray();
         
         context.AddSource($"MediatorNotificationDependencyInjection.g.cs",
             $$"""
@@ -97,7 +97,7 @@ public class NotificationIncrementalGenerator : IIncrementalGenerator
               {
                 internal static MediatorBuilder AddNotifications(this MediatorBuilder builder)
                 {
-                    {{string.Join("\n\n\t\t", information.Select(info => $"builder.Services.AddTransient<INotificationHandler<{info.RequestName}>, {info.FullyQualifiedClassName}>();"))}}
+                    {{string.Join("\n\n\t\t", notifications.Select(notification => $"builder.Services.AddTransient<INotificationHandler<{notification.RequestName}>, {notification.FullyQualifiedClassName}>();"))}}
                     
                     return builder;
                 }

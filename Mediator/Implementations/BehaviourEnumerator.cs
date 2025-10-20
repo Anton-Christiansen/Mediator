@@ -1,4 +1,5 @@
 using Mediator.Interfaces;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Mediator.Implementations;
 
@@ -8,8 +9,7 @@ namespace Mediator.Implementations;
 /// <typeparam name="THandler">Handler</typeparam>
 /// <param name="behaviours">The behaviours for the handler</param>
 /// <typeparam name="TRequest">Request type</typeparam>
-internal class BehaviourEnumerator<THandler, TRequest>(IEnumerable<IBehaviourHandler<TRequest>> behaviours, THandler handler) : IDisposable
-where THandler : IRequestHandler<TRequest>
+public sealed class BehaviourEnumerator<TRequest>([FromKeyedServices(nameof(TRequest))]IEnumerable<IBehaviourHandler<TRequest>> behaviours, IRequestHandler<TRequest> handler) : IDisposable
 {
     private readonly IEnumerator<IBehaviourHandler<TRequest>> _behaviours = behaviours.GetEnumerator();
     private CancellationToken CancellationToken { get; set; }
@@ -42,14 +42,10 @@ where THandler : IRequestHandler<TRequest>
 /// <typeparam name="THandler">Handler</typeparam>
 /// <typeparam name="TRequest">Request type</typeparam>
 /// <typeparam name="TResponse">Response type</typeparam>
-internal class BehaviourEnumerator<THandler, TRequest, TResponse>(IEnumerable<IBehaviourHandler<TRequest, TResponse>> behaviours, THandler handler) 
-    : IDisposable
-    where THandler : IRequestHandler<TRequest, TResponse>
+public sealed class BehaviourEnumerator<TRequest, TResponse>([FromKeyedServices(nameof(TRequest))]IEnumerable<IBehaviourHandler<TRequest, TResponse>> behaviours, IRequestHandler<TRequest, TResponse> handler) : IDisposable
 {
     private readonly IEnumerator<IBehaviourHandler<TRequest, TResponse>> _behaviours = behaviours.GetEnumerator();
     private CancellationToken CancellationToken { get; set; }
-    
-    
     
     public async Task<TResponse> ExecuteAsync(TRequest request, CancellationToken cancellationToken)
     {

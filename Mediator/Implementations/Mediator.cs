@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Mediator.Implementations;
 
-internal class Mediator(IServiceProvider services, MediatorConfigurations configurations) : IMediator
+internal sealed class Mediator(IServiceProvider services, MediatorConfigurations configurations) : IMediator
 {
     public async Task NotifyAsync<TRequest>(TRequest request, CancellationToken cancellationToken = default)
     {
@@ -28,84 +28,64 @@ internal class Mediator(IServiceProvider services, MediatorConfigurations config
         }
     }
 
-    
 
     public async Task SendAsync<TRequest>(TRequest request, CancellationToken cancellationToken = default)
-        where TRequest : class
     {
-
         if (configurations.UseScope)
         {
             using var scope = services.CreateScope();
-            await ResolveAndExecuteAsync(scope.ServiceProvider, request, cancellationToken);
+            if (configurations.UsePipelines)
+            {
+                var enumerator = scope.ServiceProvider.GetRequiredService<BehaviourEnumerator<TRequest>>();
+                await enumerator.ExecuteAsync(request, cancellationToken);
+            }
+            else
+            {
+                var handler = scope.ServiceProvider.GetRequiredService<IRequestHandler<TRequest>>();
+                await handler.HandleAsync(request, cancellationToken);
+            }
+
             return;
         }
-        
-        await ResolveAndExecuteAsync(services, request, cancellationToken);
+
+        if (configurations.UsePipelines)
+        {
+            var enumerator = services.GetRequiredService<BehaviourEnumerator<TRequest>>();
+            await enumerator.ExecuteAsync(request, cancellationToken);
+        }
+        else
+        {
+            var handler = services.GetRequiredService<IRequestHandler<TRequest>>();
+            await handler.HandleAsync(request, cancellationToken);
+        }
     }
 
 
     public async Task<TResponse> SendAsync<TRequest, TResponse>(TRequest request,
         CancellationToken cancellationToken = default)
-        where TRequest : class
-        where TResponse : class
     {
-        
         if (configurations.UseScope)
         {
             using var scope = services.CreateScope();
-            return await ResolveAndExecuteAsync<TRequest, TResponse>(scope.ServiceProvider, request, cancellationToken);
+            if (configurations.UsePipelines)
+            {
+                var enumerator = scope.ServiceProvider.GetRequiredService<BehaviourEnumerator<TRequest, TResponse>>();
+                return await enumerator.ExecuteAsync(request, cancellationToken);
+            }
+
+            var handler = scope.ServiceProvider.GetRequiredService<IRequestHandler<TRequest, TResponse>>();
+            return await handler.HandleAsync(request, cancellationToken);
         }
-        
-        return await ResolveAndExecuteAsync<TRequest, TResponse>(services, request, cancellationToken);
-    }
 
-
-    private static async Task ResolveAndExecuteAsync<TRequest>(IServiceProvider serviceProvider, TRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        var handler = serviceProvider.GetRequiredService<IRequestHandler<TRequest>>();
-        var handlerType = handler.GetType().GetInterfaces()
-            .First(x => x.IsAssignableTo(typeof(IRequestHandler<TRequest>)));
-
-        List<IBehaviourHandler<TRequest>> behaviours = [];
-        var genericBehaviour = typeof(IPipelineBehaviour<,>);
-        foreach (var bhs in 
-                 from reduced in handlerType.GetInheritanceSteps(typeof(IRequestHandler<TRequest>)) 
-                 select genericBehaviour.MakeGenericType(reduced, typeof(TRequest)) into concreteBehaviour 
-                 select serviceProvider.GetServices(concreteBehaviour) into services 
-                 select services.Select(x => (IBehaviourHandler<TRequest>)x!).ToArray())
+        if (configurations.UsePipelines)
         {
-            behaviours.AddRange(bhs);
+            var enumerator = services.GetRequiredService<BehaviourEnumerator<TRequest, TResponse>>();
+            return await enumerator.ExecuteAsync(request, cancellationToken);
         }
-
-        var enumerator = new BehaviourEnumerator<IRequestHandler<TRequest>, TRequest>(behaviours, handler);
-        await enumerator.ExecuteAsync(request, cancellationToken);
-    }
-    
-    
-    
-    private static async Task<TResponse> ResolveAndExecuteAsync<TRequest, TResponse>(IServiceProvider serviceProvider, TRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        var handler = serviceProvider.GetRequiredService<IRequestHandler<TRequest, TResponse>>();
-        var handlerType = handler.GetType().GetInterfaces()
-            .First(x => x.IsAssignableTo(typeof(IRequestHandler<TRequest, TResponse>)));
-        
-        List<IBehaviourHandler<TRequest, TResponse>> behaviours = [];
-        var genericBehaviour = typeof(IPipelineBehaviour<,,>);
-        foreach (var bhs in 
-                 from reduced in handlerType.GetInheritanceSteps(typeof(IRequestHandler<TRequest, TResponse>)) 
-                 select genericBehaviour.MakeGenericType(reduced, typeof(TRequest), typeof(TResponse)) into concreteBehaviour 
-                 select serviceProvider.GetServices(concreteBehaviour) into services 
-                 select services.Select(x => (IBehaviourHandler<TRequest, TResponse>)x!).ToArray())
+        else
         {
-            behaviours.AddRange(bhs);
+            var handler = services.GetRequiredService<IRequestHandler<TRequest, TResponse>>();
+            return await handler.HandleAsync(request, cancellationToken);
         }
-        
-        var enumerator = new BehaviourEnumerator<IRequestHandler<TRequest, TResponse>, TRequest, TResponse>(behaviours, handler);
-        return await enumerator.ExecuteAsync(request, cancellationToken);
     }
 }
-
-

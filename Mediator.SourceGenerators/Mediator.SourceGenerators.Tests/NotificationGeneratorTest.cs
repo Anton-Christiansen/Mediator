@@ -57,7 +57,7 @@ public class NotificationGeneratorTest
                                      public record OutputTwo();
                                      public class Handler : Test.ICommandHandler<InputTwo, OutputTwo>
                                      {
-                                         public async<OutputTwo> TaskHandleAsync(InputTwo request, CancellationToken cancellationToken = new CancellationToken())
+                                         public async Task<OutputTwo> HandleAsync(InputTwo request, CancellationToken cancellationToken = new CancellationToken())
                                          {
                                              throw new NotImplementedException();
                                          }
@@ -82,9 +82,17 @@ public class NotificationGeneratorTest
                                       {
                                         internal static MediatorBuilder AddPipelines(this MediatorBuilder builder)
                                         {
-                                            builder.Services.AddTransient<IPipelineBehaviour<Mediator.Interfaces.IRequestHandler<RandomSpace.Add.Input, RandomSpace.Add.Output>, RandomSpace.Add.Input, RandomSpace.Add.Output>, LoggingBehaviour<RandomSpace.Add.Input, RandomSpace.Add.Output>>();
+                                            builder.UsePipelines();
+                                        
+                                            // Registering Behaviours to dependency injection
+                                            builder.Services.AddKeyedTransient<IBehaviourHandler<RandomSpace.Add.Input, RandomSpace.Add.Output>, Testing.LoggingBehaviour<RandomSpace.Add.Input, RandomSpace.Add.Output>>(nameof(RandomSpace.Add.Input));
                                       
-                                      		builder.Services.AddTransient<IPipelineBehaviour<Mediator.Interfaces.IRequestHandler<RandomSpaceTwo.Delete.InputTwo, RandomSpaceTwo.Delete.OutputTwo>, RandomSpaceTwo.Delete.InputTwo, RandomSpaceTwo.Delete.OutputTwo>, LoggingBehaviour<RandomSpaceTwo.Delete.InputTwo, RandomSpaceTwo.Delete.OutputTwo>>();
+                                      		builder.Services.AddKeyedTransient<IBehaviourHandler<RandomSpaceTwo.Delete.InputTwo, RandomSpaceTwo.Delete.OutputTwo>, Testing.LoggingBehaviour<RandomSpaceTwo.Delete.InputTwo, RandomSpaceTwo.Delete.OutputTwo>>(nameof(RandomSpaceTwo.Delete.InputTwo));
+                                            
+                                            // Enumerators Behaviours to dependency injection
+                                            builder.Services.AddTransient<Mediator.Implementations.BehaviourEnumerator<RandomSpace.Add.Input, RandomSpace.Add.Output>>();
+                                      
+                                      		builder.Services.AddTransient<Mediator.Implementations.BehaviourEnumerator<RandomSpaceTwo.Delete.InputTwo, RandomSpaceTwo.Delete.OutputTwo>>();
                                             
                                             return builder;
                                         }
@@ -119,6 +127,107 @@ public class NotificationGeneratorTest
 
         Assert.Equal(expectedOutput, dependencyInjectionText);
     }
+
+    [Fact]
+    public void Handlers()
+    {
+                const string input = """
+                             namespace Test
+                             {
+                                public interface ICommandHandler<in TRequest> : Mediator.Interfaces.IRequestHandler<TRequest>;
+                                public interface ICommandHandler<in TRequest, TResponse> : Mediator.Interfaces.IRequestHandler<TRequest, TResponse>;
+                             }
+                             
+                             
+                             namespace RandomSpace
+                             {
+                                 public static class Add
+                                 {
+                                     public record Input();
+                                     public record Output();
+                                 
+                                     public class Handler : Mediator.Interfaces.IRequestHandler<Input, Output>
+                                     {
+                                         public async Task<Output> HandleAsync(Input request, CancellationToken cancellationToken = new CancellationToken())
+                                         {
+                                             throw new NotImplementedException();
+                                         }
+                                     }
+                                 }
+                             }
+                             
+                             namespace RandomSpaceTwo
+                             {
+                                 public static class Delete
+                                 {
+                                     public record InputTwo();
+                                     public record OutputTwo();
+                                     public class Handler : Test.ICommandHandler<InputTwo, OutputTwo>
+                                     {
+                                         public async Task<OutputTwo> HandleAsync(InputTwo request, CancellationToken cancellationToken = new CancellationToken())
+                                         {
+                                             throw new NotImplementedException();
+                                         }
+                                     }
+                                 }
+                             }
+                             
+                             """;
+        const string expectedOutput = """
+                                      // <auto-generated/>
+                                      
+                                      using System;
+                                      using Mediator.Interfaces;
+                                      using Mediator.Helpers;
+                                      using Microsoft.Extensions.DependencyInjection;
+                                      using Microsoft.Extensions.DependencyInjection.Extensions;
+                                      using RandomSpace;
+                                      using RandomSpaceTwo;
+                                      
+                                      namespace Mediator.DependencyInjection;
+                                      
+                                      internal static class MediatorHandlerDependencyInjectionExtension
+                                      {
+                                        internal static MediatorBuilder AddHandlers(this MediatorBuilder builder)
+                                        {
+                                            builder.Services.TryAddTransient<IRequestHandler<RandomSpace.Add.Input, RandomSpace.Add.Output>, RandomSpace.Add.Handler>();
+                                      
+                                      		builder.Services.TryAddTransient<IRequestHandler<RandomSpaceTwo.Delete.InputTwo, RandomSpaceTwo.Delete.OutputTwo>, RandomSpaceTwo.Delete.Handler>();
+                                            
+                                            return builder;
+                                        }
+                                      }
+                                      
+                                      """;
+        
+        
+        // Act
+        // Create an instance of the source generator.
+        var generator = new RequestIncrementalGenerator();
+        
+        // Source generators should be tested using 'GeneratorDriver'.
+        var driver = CSharpGeneratorDriver.Create(generator);
+
+        // We need to create a compilation with the required source code.
+        var compilation = CSharpCompilation.Create(nameof(RequestIncrementalGenerator),
+            [CSharpSyntaxTree.ParseText(input)],
+            [
+                // To support 'System.Attribute' inheritance, add reference to 'System.Private.CoreLib'.
+                MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
+                MetadataReference.CreateFromFile(typeof(IPipelineBehaviour<,>).Assembly.Location)
+            ]);
+
+        // Run generators and retrieve all results.
+        var runResult = driver.RunGenerators(compilation).GetRunResult();
+
+        // All generated files can be found in 'RunResults.GeneratedTrees'.
+        var generatedDependencyInjectionFileSyntax = runResult.GeneratedTrees.First(t => t.FilePath.EndsWith("MediatorHandlersDependencyInjection.g.cs"));
+        
+        // Assert
+        var dependencyInjectionText = generatedDependencyInjectionFileSyntax.GetText().ToString();
+
+        Assert.Equal(expectedOutput, dependencyInjectionText);
+    }
     
     [Fact]
     public void Notifications()
@@ -140,9 +249,13 @@ public class NotificationGeneratorTest
                                                          {
                                                            internal static MediatorBuilder AddNotifications(this MediatorBuilder builder)
                                                            {
-                                                               return builder.Services.AddTransient<INotificationHandler<Application.Jobs.JobCreated.Notification>, Application.Jobs.JobCreated.HandlerOne>()
-                                                         			.AddTransient<INotificationHandler<Application.Jobs.JobCreated.Notification>, Application.Jobs.JobCreated.HandlerTwo>()
-                                                         			.AddTransient<INotificationHandler<Application.Jobs.JobCreated.Notification>, Application.Jobs.JobCreated.HandlerThree>();
+                                                               builder.Services.AddTransient<INotificationHandler<Application.Jobs.JobCreated.Notification>, Application.Jobs.JobCreated.HandlerOne>();
+                                                         
+                                                         		builder.Services.AddTransient<INotificationHandler<Application.Jobs.JobCreated.Notification>, Application.Jobs.JobCreated.HandlerTwo>();
+                                                         
+                                                         		builder.Services.AddTransient<INotificationHandler<Application.Jobs.JobCreated.Notification>, Application.Jobs.JobCreated.HandlerThree>();
+                                                               
+                                                               return builder;
                                                            }
                                                          }
                                                          

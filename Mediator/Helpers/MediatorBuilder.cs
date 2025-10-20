@@ -21,6 +21,12 @@ public class MediatorBuilder
         _configurations.UseScope = true;
         return this;
     }
+
+    public MediatorBuilder UsePipelines()
+    {
+        _configurations.UsePipelines = true;
+        return this;
+    }
     
     internal MediatorBuilder(IServiceCollection services)
     {
