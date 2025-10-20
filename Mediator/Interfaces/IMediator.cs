@@ -10,7 +10,7 @@ public interface IMediator : INotifier
     /// <param name="cancellationToken">Cancellation token</param>
     /// <typeparam name="TRequest">Request type</typeparam>
     /// <returns>An awaitable task</returns>
-    Task SendAsync<TRequest>(TRequest request, CancellationToken cancellationToken = default);
+    ValueTask SendAsync<TRequest>(TRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Will apply to one or more pipelines if registered
@@ -21,5 +21,5 @@ public interface IMediator : INotifier
     /// <typeparam name="TRequest">Request type</typeparam>
     /// <typeparam name="TResponse">Response type</typeparam>
     /// <returns>The response</returns>
-    Task<TResponse> SendAsync<TRequest, TResponse>(TRequest request, CancellationToken cancellationToken = default);
+    ValueTask<TResponse> SendAsync<TRequest, TResponse>(TRequest request, CancellationToken cancellationToken = default);
 }

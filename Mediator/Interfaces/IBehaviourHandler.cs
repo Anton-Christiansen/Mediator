@@ -6,7 +6,7 @@ namespace Mediator.Interfaces;
 /// </summary>
 public interface IBehaviourHandler<TRequest>
 {
-    Task ExecuteAsync(TRequest request, Func<TRequest, Task> next, CancellationToken cancellationToken);
+    ValueTask ExecuteAsync(TRequest request, Func<TRequest, ValueTask> next, CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -15,5 +15,5 @@ public interface IBehaviourHandler<TRequest>
 /// </summary>
 public interface IBehaviourHandler<TRequest, TResponse>
 {
-    Task<TResponse> ExecuteAsync(TRequest request, Func<TRequest, Task<TResponse>> next, CancellationToken cancellationToken);
+    ValueTask<TResponse> ExecuteAsync(TRequest request, Func<TRequest, ValueTask<TResponse>> next, CancellationToken cancellationToken);
 }

@@ -6,7 +6,7 @@ namespace Mediator.Implementations;
 
 internal sealed class Mediator(IServiceProvider services, MediatorConfigurations configurations) : IMediator
 {
-    public async Task NotifyAsync<TRequest>(TRequest request, CancellationToken cancellationToken = default)
+    public async ValueTask NotifyAsync<TRequest>(TRequest request, CancellationToken cancellationToken = default)
     {
         if (request is null)
         {
@@ -29,14 +29,14 @@ internal sealed class Mediator(IServiceProvider services, MediatorConfigurations
     }
 
 
-    public async Task SendAsync<TRequest>(TRequest request, CancellationToken cancellationToken = default)
+    public async ValueTask SendAsync<TRequest>(TRequest request, CancellationToken cancellationToken = default)
     {
         if (configurations.UseScope)
         {
             using var scope = services.CreateScope();
             if (configurations.UsePipelines)
             {
-                var enumerator = scope.ServiceProvider.GetRequiredService<BehaviourEnumerator<TRequest>>();
+                var enumerator = scope.ServiceProvider.GetRequiredService<IBehaviourEnumerator<TRequest>>();
                 await enumerator.ExecuteAsync(request, cancellationToken);
             }
             else
@@ -50,7 +50,7 @@ internal sealed class Mediator(IServiceProvider services, MediatorConfigurations
 
         if (configurations.UsePipelines)
         {
-            var enumerator = services.GetRequiredService<BehaviourEnumerator<TRequest>>();
+            var enumerator = services.GetRequiredService<IBehaviourEnumerator<TRequest>>();
             await enumerator.ExecuteAsync(request, cancellationToken);
         }
         else
@@ -61,7 +61,7 @@ internal sealed class Mediator(IServiceProvider services, MediatorConfigurations
     }
 
 
-    public async Task<TResponse> SendAsync<TRequest, TResponse>(TRequest request,
+    public async ValueTask<TResponse> SendAsync<TRequest, TResponse>(TRequest request,
         CancellationToken cancellationToken = default)
     {
         if (configurations.UseScope)
@@ -69,7 +69,7 @@ internal sealed class Mediator(IServiceProvider services, MediatorConfigurations
             using var scope = services.CreateScope();
             if (configurations.UsePipelines)
             {
-                var enumerator = scope.ServiceProvider.GetRequiredService<BehaviourEnumerator<TRequest, TResponse>>();
+                var enumerator = scope.ServiceProvider.GetRequiredService<IBehaviourEnumerator<TRequest, TResponse>>();
                 return await enumerator.ExecuteAsync(request, cancellationToken);
             }
 
@@ -79,7 +79,7 @@ internal sealed class Mediator(IServiceProvider services, MediatorConfigurations
 
         if (configurations.UsePipelines)
         {
-            var enumerator = services.GetRequiredService<BehaviourEnumerator<TRequest, TResponse>>();
+            var enumerator = services.GetRequiredService<IBehaviourEnumerator<TRequest, TResponse>>();
             return await enumerator.ExecuteAsync(request, cancellationToken);
         }
         else

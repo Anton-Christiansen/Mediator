@@ -6,7 +6,7 @@ namespace Mediator.Interfaces;
 /// <typeparam name="TRequest">The request</typeparam>
 public interface IRequestHandler<in TRequest>
 {
-    Task HandleAsync(TRequest request, CancellationToken cancellationToken = default);
+    ValueTask HandleAsync(TRequest request, CancellationToken cancellationToken = default);
 }
     
 
@@ -17,5 +17,5 @@ public interface IRequestHandler<in TRequest>
 /// <typeparam name="TResponse">The response</typeparam>
 public interface IRequestHandler<in TRequest, TResponse>
 {
-    Task<TResponse> HandleAsync(TRequest request, CancellationToken cancellationToken = default);
+    ValueTask<TResponse> HandleAsync(TRequest request, CancellationToken cancellationToken = default);
 }

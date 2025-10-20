@@ -85,14 +85,14 @@ public class NotificationGeneratorTest
                                             builder.UsePipelines();
                                         
                                             // Registering Behaviours to dependency injection
-                                            builder.Services.AddKeyedTransient<IBehaviourHandler<RandomSpace.Add.Input, RandomSpace.Add.Output>, Testing.LoggingBehaviour<RandomSpace.Add.Input, RandomSpace.Add.Output>>(nameof(RandomSpace.Add.Input));
+                                            builder.Services.AddTransient<IBehaviourHandler<RandomSpace.Add.Input, RandomSpace.Add.Output>, Testing.LoggingBehaviour<RandomSpace.Add.Input, RandomSpace.Add.Output>>();
                                       
-                                      		builder.Services.AddKeyedTransient<IBehaviourHandler<RandomSpaceTwo.Delete.InputTwo, RandomSpaceTwo.Delete.OutputTwo>, Testing.LoggingBehaviour<RandomSpaceTwo.Delete.InputTwo, RandomSpaceTwo.Delete.OutputTwo>>(nameof(RandomSpaceTwo.Delete.InputTwo));
+                                      		builder.Services.AddTransient<IBehaviourHandler<RandomSpaceTwo.Delete.InputTwo, RandomSpaceTwo.Delete.OutputTwo>, Testing.LoggingBehaviour<RandomSpaceTwo.Delete.InputTwo, RandomSpaceTwo.Delete.OutputTwo>>();
                                             
-                                            // Enumerators Behaviours to dependency injection
-                                            builder.Services.AddTransient<Mediator.Implementations.BehaviourEnumerator<RandomSpace.Add.Input, RandomSpace.Add.Output>>();
+                                            // Registering Enumerators to dependency injection
+                                            builder.Services.AddTransient<Mediator.Interfaces.IBehaviourEnumerator<RandomSpace.Add.Input, RandomSpace.Add.Output>, Mediator.Implementations.BehaviourEnumerator<RandomSpace.Add.Input, RandomSpace.Add.Output>>();
                                       
-                                      		builder.Services.AddTransient<Mediator.Implementations.BehaviourEnumerator<RandomSpaceTwo.Delete.InputTwo, RandomSpaceTwo.Delete.OutputTwo>>();
+                                      		builder.Services.AddTransient<Mediator.Interfaces.IBehaviourEnumerator<RandomSpaceTwo.Delete.InputTwo, RandomSpaceTwo.Delete.OutputTwo>, Mediator.Implementations.BehaviourEnumerator<RandomSpaceTwo.Delete.InputTwo, RandomSpaceTwo.Delete.OutputTwo>>();
                                             
                                             return builder;
                                         }

@@ -10,5 +10,5 @@ public interface INotifier
     /// <param name="cancellationToken">Cancellation token</param>
     /// <typeparam name="TNotification">The notification type</typeparam>
     /// <returns></returns>
-    Task NotifyAsync<TNotification>(TNotification request, CancellationToken cancellationToken = default);
+    ValueTask NotifyAsync<TNotification>(TNotification request, CancellationToken cancellationToken = default);
 }

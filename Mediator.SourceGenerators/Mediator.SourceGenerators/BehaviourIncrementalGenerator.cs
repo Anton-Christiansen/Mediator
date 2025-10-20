@@ -156,12 +156,12 @@ public class BehaviourIncrementalGenerator : IIncrementalGenerator
 
         entries = entries.Distinct().ToArray();
         
-        var dependencyInjectionBehaviours = entries.OrderBy(x => x.Request).Select(behaviour =>
-            $"builder.Services.AddKeyedTransient<IBehaviourHandler<{behaviour.Generic}>, {behaviour.FullyQualifiedClassName}<{behaviour.Generic}>>(nameof({behaviour.Request}));").ToArray();
+        var dependencyInjectionBehaviours = entries.OrderBy(x => x.Request).ThenBy(x => x.HandlerType).Select(behaviour =>
+            $"builder.Services.AddTransient<IBehaviourHandler<{behaviour.Generic}>, {behaviour.FullyQualifiedClassName}<{behaviour.Generic}>>();").Distinct().ToArray();
         
         var dependencyInjectionEnumerators =
             entries
-                .Select(x => new {x.Generic}).Distinct().Select(info => $"builder.Services.AddTransient<Mediator.Implementations.BehaviourEnumerator<{info.Generic}>>();");
+                .Select(x => new {x.Generic}).Distinct().Select(input => $"builder.Services.AddTransient<Mediator.Interfaces.IBehaviourEnumerator<{input.Generic}>, Mediator.Implementations.BehaviourEnumerator<{input.Generic}>>();");
             
             
         
@@ -187,7 +187,7 @@ public class BehaviourIncrementalGenerator : IIncrementalGenerator
                     // Registering Behaviours to dependency injection
                     {{string.Join("\n\n\t\t", dependencyInjectionBehaviours)}}
                     
-                    // Enumerators Behaviours to dependency injection
+                    // Registering Enumerators to dependency injection
                     {{string.Join("\n\n\t\t", dependencyInjectionEnumerators)}}
                     
                     return builder;
